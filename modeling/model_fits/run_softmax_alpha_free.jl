@@ -1,3 +1,6 @@
+using Pkg
+Pkg.activate("/dfs6b/pub/rogerc8/foraging_modeling")
+Pkg.instantiate()
 using Serialization 
 using StatsFuns: logistic, logsumexp
 using CSV
@@ -119,8 +122,8 @@ function get_parameter_bounds(alpha_level)
         lb = [-10.0, 0, 0]
         ub = [10.0, 1.0, 1.0]
     elseif alpha_level == 1
-        lb = [-10.0, -3.0, 0, 0]
-        ub = [10.0, 3.0, 1.0, 1.0]
+        lb = [-10.0, -3.0, 0, 0] # modified to restrict the lower bound of gamma coef to zero
+        ub = [10.0, 0, 1.0, 1.0]
     end 
     plb = lb 
     pub = ub 
@@ -151,7 +154,7 @@ function run_fit_procedure(subject_data, alpha_level, max_iter=20, convergence_c
             init_x = [init_seq[1], init_seq[2], init_seq[3], init_seq[4]]
         end 
         bads_target = (x) -> model_wrapper(subject_data, x, alpha_level)
-        options = Dict("tol_fun"=> 1.0, "max_fun_evals"=>1000, "specify_target_noise"=>false)
+        options = Dict("tol_fun"=> 1e-4, "max_fun_evals"=>1000, "specify_target_noise"=>false)
         bads = BADS(bads_target, init_x, lb, ub, plb, pub, options=options)
         res = bads.optimize()
 
@@ -194,10 +197,16 @@ function main()
     alpha_level = parse(Int64,ARGS[1])
     sub_num = parse(Int64,ARGS[2])
     sub_data = get_sub_crp_latents(sub_num, alpha_level)
+    output_folder = ARGS[3]  # added to make saving data more flexible
+    println("Attempting to write to "* output_folder)
 
     res = run_fit_procedure(sub_data,alpha_level)
     final_results = DataFrame("subject_num"=>sub_num, "neg_llh"=>res[1],"gamma_base"=>res[2],"gamma_coef"=>res[3],"beta"=>res[4],"epsilon"=>res[5])
-    file_name = string("softmax/neg_llh_alpha_"*string(alpha_level)*"/sub"*string(sub_num)*".csv")
+
+    mkpath(output_folder)  # in case no folder of such exists
+    mkpath(output_folder * "/neg_llh_alpha_0")
+    mkpath(output_folder * "/neg_llh_alpha_1")
+    file_name = string(output_folder * "/neg_llh_alpha_" * string(alpha_level)* "/sub" * string(sub_num) * ".csv")
     CSV.write(file_name,final_results)
 end
 

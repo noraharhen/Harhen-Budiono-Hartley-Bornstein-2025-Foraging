@@ -1,3 +1,7 @@
+using Pkg
+Pkg.precompile()
+Pkg.activate("/dfs6b/pub/rogerc8/foraging_modeling")
+Pkg.instantiate()
 using CSV
 using DataFrames
 using Random, Distributions
@@ -229,21 +233,27 @@ function monte_carlo_sample_latents(alpha_level, sub_num, data, n_runs=1000)
     if alpha_level == 0 
         alpha = 0.0
     elseif alpha_level == 1
-        alpha = 0.2    
+        alpha = 0.2   
     end 
 
     # sample planet type assignments 
+    println(sub_num)
+
     crp_predictions = map(1:n_runs) do i
         println(i)
-        crp_only(data, exp_struc, exp_timing, alpha)
+        
+	GC.gc()
+	crp_only(data, exp_struc, exp_timing, alpha)
+	
     end
 
-    # save crp_predictions to folder 
-    serialize("crp_latents_alpha_"*string(alpha_level)*"/sub"*string(sub_num)*".ser", crp_predictions)
+    # save crp_predictions to folder
+    mkpath("crp_latents_alpha_" * string(alpha_level))
+    serialize("crp_latents_alpha_" * string(alpha_level) * "/sub" * string(sub_num) * ".ser", crp_predictions)
 end
 
 function get_sub_data(sub_num)
-    all_data = DataFrame(CSV.File("data/all_data_20240417.csv"))
+    all_data = DataFrame(CSV.File("./data/foraging_fmri_pilot_data.csv"))
     return all_data[in(sub_num).(all_data.sub_num),:]
 end 
 
